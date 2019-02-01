@@ -115,6 +115,81 @@ kdestroy = (options, callback) ->
       return handle_error(callback, err, ctx) if err
       callback undefined
 
+kvno = (options, callback) ->
+  return callback Error 'Please specify service for kvno' unless options.service
+
+  k.krb5_init_context (err, ctx) ->
+    return handle_error(callback, err, ctx) if err
+    do_ccache(ctx)
+
+  do_ccache = (ctx) ->
+    if options.ccname
+      k.krb5_cc_resolve ctx, options.ccname, (err, ccache) ->
+        return handle_error(callback, err, ctx) if err
+        do_keytab ctx, ccache
+    else
+      k.krb5_cc_default ctx, (err, ccache) ->
+        return handle_error(callback, err, ctx) if err
+        do_keytab ctx, ccache
+
+  do_keytab = (ctx, ccache) ->
+    if options.keytab
+      k.krb5_kt_resolve ctx, options.keytab, (err, keytab) ->
+        return handle_error(callback, err, ctx) if err
+        do_for_user ctx, ccache, keytab
+    else
+        do_for_user ctx, ccache, null
+
+  do_for_user = (ctx, ccache, keytab) ->
+    if options.foruser
+      k.krb5_parse_name_flags ctx, options.foruser, (err, foruser_princ) ->
+        return handle_error(callback, err, ctx, null, ccache) if err
+        do_me ctx, ccache, keytab, foruser_princ
+    else
+      do_me ctx, ccache, keytab, null
+
+  # unhandled options
+    # do_u2u
+    # do_etype
+
+  do_me = (ctx, ccache, keytab, foruser_princ) ->
+    k.krb5_cc_get_principal ctx, ccache, (err, me) ->
+      return handle_error(callback, err, ctx, null, ccache) if err
+      do_parse_name ctx, ccache, keytab, foruser_princ, me
+
+  do_parse_name = (ctx, ccache, keytab, foruser_princ, me) ->
+    if options.sname
+      k.krb5_sname_to_principal ctx, options.service, options.sname, (err, server) ->
+        return handle_error(callback, err, ctx, null, ccache) if err
+        do_creds ctx, ccache, keytab, foruser_princ, me, server
+    else
+      k.krb5_parse_name ctx, options.service, (err, server) ->
+        return handle_error(callback, err, ctx, null, ccache) if err
+        do_creds ctx, ccache, keytab, foruser_princ, me, server
+
+  do_creds = (ctx, ccache, keytab, foruser_princ, me, server) ->
+    opt = 0
+    if foruser_princ is not null
+      # TODO: error if !krb5_principal_compare(ctx, me, server)
+      k.krb5_get_credentials_for_user ctx,  # unhandled in_cred_etype, in_cred_u2u
+      opt,
+      ccache,
+      foruser_princ,  # in_cred_client,
+      me,             # in_cred_server
+      null,
+      (err, out_creds) ->
+        return handle_error(callback, err, ctx, null, ccache) if err
+        callback undefined
+    else
+      k.krb5_get_credentials ctx,  # unhandled in_cred_etype, in_cred_u2u
+      opt,
+      ccache,
+      me,             # in_cred_client,
+      server,         # in_cred_server
+      (err, out_creds) ->
+        return handle_error(callback, err, ctx, null, ccache) if err
+        callback undefined
+  
 
 spnego = (options, callback) ->
   options.ccname ?= ""
@@ -157,3 +232,10 @@ module.exports =
         kdestroy options, (err) ->
           reject err if err
           resolve()
+
+  kvno: (options, callback) ->
+    return kvno options, callback if typeof callback is 'function'
+    return new Promise (resolve, reject) ->
+      kvno options, (err) ->
+        reject err if err
+        resolve()
