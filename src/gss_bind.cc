@@ -19,7 +19,7 @@ class Worker_generate_spnego_token : public Napi::AsyncWorker {
                                  std::string gss_name_type,
                                  std::string ccname,
                                  Napi::Function& callback)
-      : Napi::AsyncWorker(callback), str_server(str_server), 
+      : Napi::AsyncWorker(callback), str_server(str_server),
                                      input_name_type(gss_name_type),
                                      krb_ccname(ccname),
                                      error_msg("") {
@@ -30,7 +30,7 @@ class Worker_generate_spnego_token : public Napi::AsyncWorker {
       gss_buffer_desc service;
       service.length = strlen(principal);
       service.value = (char*)principal;
-      auto name_type = (input_name_type == "GSS_C_NT_USER_NAME") ? GSS_C_NT_USER_NAME 
+      auto name_type = (input_name_type == "GSS_C_NT_USER_NAME") ? GSS_C_NT_USER_NAME
                                                                  : GSS_C_NT_HOSTBASED_SERVICE;
       return gss_import_name(&gss_minor, &service, name_type, desired_name);
     }
@@ -47,7 +47,7 @@ class Worker_generate_spnego_token : public Napi::AsyncWorker {
       }
 
       if (krb_ccname != "") {
-        // gss_krb5_ccache_name is actually thread safe, 
+        // gss_krb5_ccache_name is actually thread safe,
         // as discussed in https://krbdev.mit.narkive.com/hOSNjHRA/krb5-get-in-tkt-with-password-gss-init-sec-context
         gss_err = gss_krb5_ccache_name(&gss_minor, krb_ccname.c_str(), NULL);
       }
@@ -57,7 +57,7 @@ class Worker_generate_spnego_token : public Napi::AsyncWorker {
                                      &gss_context,
                                      target_name,
                                      GSS_MECH_SPNEGO,
-                                     GSS_C_REPLAY_FLAG | GSS_C_SEQUENCE_FLAG,
+                                     GSS_C_DELEG_FLAG, GSS_C_REPLAY_FLAG | GSS_C_SEQUENCE_FLAG,
                                      GSS_C_INDEFINITE,
                                      GSS_C_NO_CHANNEL_BINDINGS,
                                      &input_buf,
@@ -100,7 +100,7 @@ class Worker_generate_spnego_token : public Napi::AsyncWorker {
     }
 
     void OnOK() {
-      Napi::HandleScope scope(Env());       
+      Napi::HandleScope scope(Env());
 
       Callback().Call({
         Napi::String::New(Env(), error_msg),
@@ -110,7 +110,7 @@ class Worker_generate_spnego_token : public Napi::AsyncWorker {
 
     //
     OM_uint32 gss_err;
-    OM_uint32 gss_minor;    
+    OM_uint32 gss_minor;
 
     // In parameter
     std::string str_server;
@@ -132,9 +132,9 @@ Napi::Value _generate_spnego_token(const Napi::CallbackInfo& info) {
   std::string ccname = info[2].As<Napi::String>().Utf8Value();
   Napi::Function callback = info[3].As<Napi::Function>();
 
-  Worker_generate_spnego_token* worker = new Worker_generate_spnego_token(server, 
-                                                                          input_name_type, 
-                                                                          ccname, 
+  Worker_generate_spnego_token* worker = new Worker_generate_spnego_token(server,
+                                                                          input_name_type,
+                                                                          ccname,
                                                                           callback);
   worker->Queue();
   return info.Env().Undefined();
