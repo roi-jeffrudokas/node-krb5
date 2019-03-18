@@ -67,14 +67,14 @@ class Worker_generate_spnego_token : public Napi::AsyncWorker {
                                      NULL);
 
       if(!(GSS_ERROR(gss_err))) {
-        char token_buffer[2048];
+        char token_buffer[8192];
         encode64((char*)output_buf.value,token_buffer,output_buf.length);
         this->spnego_token = new char[strlen(token_buffer)+1];
         strcpy(this->spnego_token, token_buffer);
       }
       else {
         if(GSS_ERROR(gss_err)) {
-          char token_buffer[2048];
+          char token_buffer[8192];
           OM_uint32 message_context;
           OM_uint32 min_status;
           gss_buffer_desc status_string;
