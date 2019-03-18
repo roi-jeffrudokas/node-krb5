@@ -57,7 +57,7 @@ class Worker_generate_spnego_token : public Napi::AsyncWorker {
                                      &gss_context,
                                      target_name,
                                      GSS_MECH_SPNEGO,
-                                     GSS_C_DELEG_FLAG | GSS_C_REPLAY_FLAG | GSS_C_SEQUENCE_FLAG,
+                                     GSS_C_DELEG_FLAG | GSS_C_MUTUAL_FLAG | GSS_C_SEQUENCE_FLAG,
                                      GSS_C_INDEFINITE,
                                      GSS_C_NO_CHANNEL_BINDINGS,
                                      &input_buf,
